@@ -2,6 +2,24 @@
 
 A hierarchical MCP (Model Context Protocol) server for managing skill definitions. Skills are stored as folders containing `SKILL.md` with YAML frontmatter, organized in a browsable tree structure with full-text search and a web UI.
 
+## When to Use / When Not to Use
+
+### Use this when
+
+- You have **many skills (100+)** and including all their frontmatter in the AI's context window would waste tokens
+- You want **structured, hierarchical organization** of skills by domain (coding, security, writing...)
+- You want **search + browse** so the AI can find the right skill without knowing the exact path
+- You want **usage tracking** so popular skills naturally rank higher over time
+- You want a **web UI** for humans to browse the same skill tree
+
+### Don't use this when
+
+- You have **few skills (< 15)** — just install them as per your agents' instructions, no server needed
+- Your skills are **ephemeral or one-shot** — the server setup overhead isn't worth it
+- You need **real-time editing or CRUD** from the web UI — it's read-only by design
+- You need **multi-user auth or permissions** — not built for that
+- You need **relational queries or a database backend** — this is filesystem + in-memory index
+
 ## Architecture
 
 ```
