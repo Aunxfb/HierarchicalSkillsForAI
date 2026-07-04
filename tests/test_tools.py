@@ -181,6 +181,36 @@ def test_reload():
     assert len(tree.nodes_by_path) == 3
 
 
+def test_case_insensitive_lookup():
+    root, tree = get_test_tree()
+    for method in [tree.read, tree.info, tree.steps]:
+        result_lower = method("skill_a")
+        result_upper = method("SKILL_A")
+        assert result_lower == result_upper, f"{method.__name__} failed case-insensitive lookup"
+    b1 = tree.browse("skill_a")
+    b2 = tree.browse("SKILL_A")
+    assert b1["children"] == b2["children"]
+    assert b1.get("skill") == b2.get("skill")
+    assert "error" not in b2
+
+
+def test_case_collision_raises():
+    import tempfile
+    from pathlib import Path
+    from src.discovery import DiscoveryError
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "Coding").mkdir()
+    (tmp / "coding").mkdir()
+    (tmp / "Coding" / "SKILL.md").write_text("---\nname: skill_x\n---\n")
+    (tmp / "coding" / "SKILL.md").write_text("---\nname: skill_y\n---\n")
+    try:
+        from src.tree import SkillTree
+        SkillTree(tmp, 4)
+        assert False, "Expected DiscoveryError for case collision"
+    except DiscoveryError:
+        pass
+
+
 def test_use_persists_to_disk():
     root = Path(tempfile.mkdtemp())
     _make_skill(root, "persist_skill")

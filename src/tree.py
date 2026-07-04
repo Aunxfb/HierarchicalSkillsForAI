@@ -22,9 +22,18 @@ class SkillTree:
     def _build(self):
         discovered = walk_skills(self.repo_root, self.max_depth)
 
+        seen_lower: dict[str, str] = {}
         for info in discovered:
             if not info["path"]:
                 continue
+            lowered = info["path"].lower()
+            if lowered in seen_lower:
+                raise DiscoveryError(
+                    f"Case collision: paths '{info['path']}' and "
+                    f"'{seen_lower[lowered]}' both resolve to '{lowered}'"
+                )
+            seen_lower[lowered] = info["path"]
+
             node = TreeNode(
                 path=info["path"],
                 folder_name=info["folder_name"],
@@ -37,7 +46,7 @@ class SkillTree:
                 result = parse_skill_md(skill_path)
                 if result:
                     node.skill_metadata, node.body = result
-            self.nodes_by_path[info["path"]] = node
+            self.nodes_by_path[lowered] = node
 
         names: dict[str, str] = {}
         for path, node in self.nodes_by_path.items():
@@ -45,9 +54,9 @@ class SkillTree:
                 name = node.skill_metadata.name
                 if name in names:
                     raise DiscoveryError(
-                        f"Duplicate skill name '{name}' at paths: {names[name]} and {path}"
+                        f"Duplicate skill name '{name}' at paths: {names[name]} and {node.path}"
                     )
-                names[name] = path
+                names[name] = node.path
 
         for path, node in self.nodes_by_path.items():
             if "/" in path:
@@ -60,7 +69,7 @@ class SkillTree:
     def get_node(self, path: str) -> Optional[TreeNode]:
         if not path or path == "/":
             return self.root
-        normalized = path.strip("/")
+        normalized = path.strip("/").lower()
         if ".." in normalized.split("/"):
             return None
         return self.nodes_by_path.get(normalized)

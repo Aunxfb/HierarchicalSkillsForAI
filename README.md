@@ -108,6 +108,8 @@ skills/
 - Folders beyond `--max-depth` are silently ignored
 - Empty folders (no `SKILL.md`, no subfolders) are silently ignored
 - Use lowercase with hyphens for folder names: `web-scraping`
+- All path lookups are **case-insensitive** — `"Coding/Python"` and `"coding/python"` resolve to the same node
+- **Case collisions are rejected at startup**: having both `Coding/` and `coding/` folders will abort the server — use consistent casing
 
 ### Frontmatter fields
 
@@ -149,6 +151,7 @@ On startup and `reload()` the server validates every skill:
 - `SKILL.md` must exist and have valid YAML frontmatter
 - `name` field is required and must be **unique** across the entire tree
 - Duplicate names cause an abort with per-skill error logging
+- Folders with case-colliding paths (e.g. `Coding/` and `coding/`) cause an abort — use consistent casing
 - Folders beyond `--max-depth` are silently ignored
 
 ### Hierarchy guidelines
