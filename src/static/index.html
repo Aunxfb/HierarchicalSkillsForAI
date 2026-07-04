@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skills Browser</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #c9d1d9; --text-muted: #8b949e; --accent: #58a6ff;
+  --accent-green: #3fb950; --accent-orange: #d29922;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+header h1 { font-size: 18px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.search-container { flex: 1; max-width: 500px; position: relative; }
+.search-container input { width: 100%; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; outline: none; }
+.search-container input:focus { border-color: var(--accent); }
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.search-results.active { display: block; }
+.search-result-item { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.search-result-item:hover { background: #1c2128; }
+.search-result-item .name { font-weight: 500; }
+.search-result-item .path { font-size: 12px; color: var(--text-muted); }
+.search-result-item .score { font-size: 11px; color: var(--accent-orange); background: rgba(210, 153, 34, 0.1); padding: 2px 6px; border-radius: 4px; }
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+.sidebar-header { padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+.tree { padding: 8px 0; }
+.tree-item { cursor: pointer; user-select: none; }
+.tree-item-content { display: flex; align-items: center; padding: 4px 16px; gap: 6px; font-size: 14px; color: var(--text); transition: background 0.1s; }
+.tree-item-content:hover { background: #1c2128; }
+.tree-item-content.active { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+.tree-toggle { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.15s; }
+.tree-toggle.expanded { transform: rotate(90deg); }
+.tree-toggle.leaf { visibility: hidden; }
+.tree-icon { font-size: 14px; flex-shrink: 0; }
+.tree-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-children { display: none; }
+.tree-children.open { display: block; }
+.tree-indent { padding-left: 20px; }
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content-header { padding: 20px 24px 12px; border-bottom: 1px solid var(--border); }
+.content-header h2 { font-size: 22px; font-weight: 600; }
+.content-header .path-display { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.content-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; gap: 24px; }
+.skill-content { flex: 1; min-width: 0; }
+.skill-content h1 { font-size: 22px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.skill-content h2 { font-size: 18px; margin: 20px 0 8px; }
+.skill-content h3 { font-size: 15px; margin: 16px 0 6px; }
+.skill-content p { margin: 8px 0; line-height: 1.6; }
+.skill-content ul, .skill-content ol { margin: 8px 0; padding-left: 24px; }
+.skill-content li { margin: 4px 0; }
+.skill-content code { background: rgba(88, 166, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+.skill-content pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 16px; overflow-x: auto; margin: 12px 0; }
+.skill-content pre code { background: none; padding: 0; }
+.skill-content blockquote { border-left: 3px solid var(--accent); padding-left: 12px; margin: 12px 0; color: var(--text-muted); }
+.skill-content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+.skill-content a { color: var(--accent); }
+.empty-state { display: flex; flex: 1; align-items: center; justify-content: center; color: var(--text-muted); }
+.empty-state p { text-align: center; }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.info-panel { width: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; flex-shrink: 0; max-height: fit-content; }
+.info-panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px; }
+.info-section { margin-bottom: 16px; }
+.info-section:last-child { margin-bottom: 0; }
+.info-section h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+.info-tag { display: inline-block; background: rgba(88, 166, 255, 0.1); color: var(--accent); padding: 2px 8px; border-radius: 12px; font-size: 12px; margin: 2px 4px 2px 0; }
+.info-stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.info-stat:last-child { border-bottom: none; }
+.info-stat .label { color: var(--text-muted); }
+.info-stat .value { color: var(--text); font-weight: 500; }
+.info-list { list-style: none; font-size: 13px; }
+.info-list li { padding: 4px 0; color: var(--accent); }
+.loading { text-align: center; color: var(--text-muted); padding: 40px; }
+.error { color: #f85149; padding: 20px; text-align: center; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #484f58; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Skills Browser</h1>
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Search skills..." autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</header>
+<div class="main">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">Skill Tree</div>
+    <div class="tree" id="treeRoot"></div>
+  </nav>
+  <main class="content">
+    <div class="empty-state" id="emptyState">
+      <div>
+        <div class="icon">📂</div>
+        <p>Select a skill from the tree<br>or search to get started</p>
+      </div>
+    </div>
+    <div class="content-header" id="contentHeader" style="display:none">
+      <h2 id="skillTitle"></h2>
+      <div class="path-display" id="skillPath"></div>
+    </div>
+    <div class="content-body" id="contentBody" style="display:none">
+      <div class="skill-content" id="skillContent"></div>
+      <div class="info-panel" id="infoPanel"></div>
+    </div>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+const treeRoot = document.getElementById('treeRoot');
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+const emptyState = document.getElementById('emptyState');
+const contentHeader = document.getElementById('contentHeader');
+const contentBody = document.getElementById('contentBody');
+const skillTitle = document.getElementById('skillTitle');
+const skillPath = document.getElementById('skillPath');
+const skillContent = document.getElementById('skillContent');
+const infoPanel = document.getElementById('infoPanel');
+
+let searchTimeout = null;
+
+async function api(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function renderTree(parentEl, data, depth) {
+  const children = data.children || {};
+  const entries = Object.entries(children);
+  if (entries.length === 0 && !data.skill) {
+    parentEl.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;">Empty</div>';
+    return;
+  }
+  for (const [name, child] of entries) {
+    const item = document.createElement('div');
+    item.className = 'tree-item';
+    const isGroup = child.node_type === 'group' || child.node_type === 'dual';
+    const hasChildren = isGroup;
+    const content = document.createElement('div');
+    content.className = 'tree-item-content';
+    content.dataset.path = child.path;
+    content.dataset.hasSkill = child.node_type === 'skill' || child.node_type === 'dual';
+    const toggle = document.createElement('span');
+    toggle.className = 'tree-toggle' + (hasChildren ? '' : ' leaf');
+    toggle.textContent = '▶';
+    content.appendChild(toggle);
+    const icon = document.createElement('span');
+    icon.className = 'tree-icon';
+    const iconMap = { skill: '📄', group: '📁', dual: '📂', root: '📁' };
+    icon.textContent = iconMap[child.node_type] || '📁';
+    content.appendChild(icon);
+    const label = document.createElement('span');
+    label.className = 'tree-label';
+    label.textContent = child.name || name;
+    content.appendChild(label);
+    content.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (hasChildren) {
+        toggle.classList.toggle('expanded');
+        const childrenContainer = item.querySelector('.tree-children');
+        if (childrenContainer) {
+          childrenContainer.classList.toggle('open');
+        }
+      }
+      document.querySelectorAll('.tree-item-content.active').forEach(el => el.classList.remove('active'));
+      content.classList.add('active');
+      if (content.dataset.hasSkill === 'true') {
+        loadSkill(child.path);
+      } else {
+        showGroupInfo(child.path, child.name || name);
+      }
+    });
+    item.appendChild(content);
+    if (hasChildren) {
+      const childrenContainer = document.createElement('div');
+      childrenContainer.className = 'tree-children';
+      const childWrapper = document.createElement('div');
+      childWrapper.className = 'tree-indent';
+      childrenContainer.appendChild(childWrapper);
+      item.appendChild(childrenContainer);
+      loadChildren(child.path, childWrapper);
+    }
+    parentEl.appendChild(item);
+  }
+}
+
+async function loadChildren(path, container) {
+  try {
+    const data = await api(`/api/browse?path=${encodeURIComponent(path)}`);
+    renderTree(container, data, 0);
+  } catch (e) {
+    container.innerHTML = '<div class="error">Failed to load</div>';
+  }
+}
+
+async function loadTree() {
+  try {
+    const data = await api('/api/browse');
+    renderTree(treeRoot, data, 0);
+  } catch (e) {
+    treeRoot.innerHTML = '<div class="error">Failed to load skill tree</div>';
+  }
+}
+
+function renderMarkdown(md) {
+  return marked.parse(md, { breaks: true });
+}
+
+async function loadSkill(path) {
+  emptyState.style.display = 'none';
+  contentHeader.style.display = 'block';
+  contentBody.style.display = 'flex';
+  skillContent.innerHTML = '<div class="loading">Loading...</div>';
+
+  try {
+    const data = await api(`/api/read?path=${encodeURIComponent(path)}`);
+    const info = await api(`/api/info?path=${encodeURIComponent(path)}`);
+
+    skillTitle.textContent = info.name || path.split('/').pop();
+    skillPath.textContent = path;
+    skillContent.innerHTML = renderMarkdown(data.content || '');
+
+    renderInfoPanel(info);
+  } catch (e) {
+    skillContent.innerHTML = '<div class="error">Error loading skill: ' + e.message + '</div>';
+  }
+}
+
+function renderInfoPanel(info) {
+  infoPanel.innerHTML = '';
+  const title = document.createElement('h3');
+  title.textContent = 'Skill Info';
+  infoPanel.appendChild(title);
+
+  const desc = document.createElement('div');
+  desc.className = 'info-section';
+  desc.innerHTML = '<h4>Description</h4><p style="font-size:13px;line-height:1.5">' + (info.description || 'No description') + '</p>';
+  infoPanel.appendChild(desc);
+
+  if (info.tags && info.tags.length) {
+    const tags = document.createElement('div');
+    tags.className = 'info-section';
+    tags.innerHTML = '<h4>Tags</h4>';
+    const tagWrap = document.createElement('div');
+    info.tags.forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'info-tag';
+      span.textContent = t;
+      tagWrap.appendChild(span);
+    });
+    tags.appendChild(tagWrap);
+    infoPanel.appendChild(tags);
+  }
+
+  if (info.aliases && info.aliases.length) {
+    const aliases = document.createElement('div');
+    aliases.className = 'info-section';
+    aliases.innerHTML = '<h4>Aliases</h4>';
+    const list = document.createElement('ul');
+    list.className = 'info-list';
+    info.aliases.forEach(a => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      list.appendChild(li);
+    });
+    aliases.appendChild(list);
+    infoPanel.appendChild(aliases);
+  }
+
+  const stats = document.createElement('div');
+  stats.className = 'info-section';
+  stats.innerHTML = '<h4>Usage Stats</h4>';
+  const statsInner = document.createElement('div');
+  statsInner.innerHTML = `
+    <div class="info-stat"><span class="label">Uses</span><span class="value">${info.uses || 0}</span></div>
+    <div class="info-stat"><span class="label">Last Used</span><span class="value">${info.last_used || 'Never'}</span></div>
+  `;
+  stats.appendChild(statsInner);
+  infoPanel.appendChild(stats);
+
+  if (info.steps && info.steps.length) {
+    const steps = document.createElement('div');
+    steps.className = 'info-section';
+    steps.innerHTML = '<h4>Steps</h4>';
+    const list = document.createElement('ol');
+    list.className = 'info-list';
+    info.steps.forEach(s => {
+      const li = document.createElement('li');
+      li.textContent = s;
+      list.appendChild(li);
+    });
+    steps.appendChild(list);
+    infoPanel.appendChild(steps);
+  }
+
+  if (info.depends_on && info.depends_on.length) {
+    const deps = document.createElement('div');
+    deps.className = 'info-section';
+    deps.innerHTML = '<h4>Depends On</h4>';
+    const list = document.createElement('ul');
+    list.className = 'info-list';
+    info.depends_on.forEach(d => {
+      const li = document.createElement('li');
+      li.textContent = d;
+      list.appendChild(li);
+    });
+    deps.appendChild(list);
+    infoPanel.appendChild(deps);
+  }
+
+  if (info.related && info.related.length) {
+    const related = document.createElement('div');
+    related.className = 'info-section';
+    related.innerHTML = '<h4>Related</h4>';
+    const list = document.createElement('ul');
+    list.className = 'info-list';
+    info.related.forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = r;
+      list.appendChild(li);
+    });
+    related.appendChild(list);
+    infoPanel.appendChild(related);
+  }
+
+  if (info.followed_by && info.followed_by.length) {
+    const fb = document.createElement('div');
+    fb.className = 'info-section';
+    fb.innerHTML = '<h4>Followed By</h4>';
+    const list = document.createElement('ul');
+    list.className = 'info-list';
+    info.followed_by.forEach(f => {
+      const li = document.createElement('li');
+      li.textContent = f;
+      list.appendChild(li);
+    });
+    fb.appendChild(list);
+    infoPanel.appendChild(fb);
+  }
+}
+
+function showGroupInfo(path, name) {
+  emptyState.style.display = 'none';
+  contentHeader.style.display = 'block';
+  contentBody.style.display = 'flex';
+  skillTitle.textContent = name;
+  skillPath.textContent = path || '/';
+  skillContent.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center"><p>This is a group folder. Select a skill from the tree to view its content.</p></div>';
+  infoPanel.innerHTML = '';
+  const title = document.createElement('h3');
+  title.textContent = 'Group';
+  infoPanel.appendChild(title);
+  const info = document.createElement('div');
+  info.className = 'info-section';
+  info.innerHTML = '<h4>Path</h4><p style="font-size:13px">' + (path || '/') + '</p>';
+  infoPanel.appendChild(info);
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const q = searchInput.value.trim();
+  if (!q) { searchResults.classList.remove('active'); return; }
+  searchTimeout = setTimeout(async () => {
+    try {
+      const results = await api(`/api/search?q=${encodeURIComponent(q)}`);
+      searchResults.innerHTML = '';
+      if (results.length === 0) {
+        searchResults.innerHTML = '<div style="padding:12px;color:var(--text-muted);text-align:center;">No results found</div>';
+      } else {
+        results.slice(0, 20).forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'search-result-item';
+          item.innerHTML = `<span><span class="name">${r.name}</span><br><span class="path">${r.path}</span></span><span class="score">${r.score}</span>`;
+          item.addEventListener('click', () => {
+            searchInput.value = '';
+            searchResults.classList.remove('active');
+            document.querySelectorAll('.tree-item-content.active').forEach(el => el.classList.remove('active'));
+            const treeItems = document.querySelectorAll('.tree-item-content');
+            for (const ti of treeItems) {
+              const p = ti.dataset.path;
+              if (p === r.path) {
+                ti.classList.add('active');
+                break;
+              }
+            }
+            loadSkill(r.path);
+          });
+          searchResults.appendChild(item);
+        });
+      }
+      searchResults.classList.add('active');
+    } catch (e) {
+      searchResults.innerHTML = '<div class="error">Search failed</div>';
+      searchResults.classList.add('active');
+    }
+  }, 200);
+});
+
+document.addEventListener('click', (e) => {
+  if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+    searchResults.classList.remove('active');
+  }
+});
+
+loadTree();
+</script>
+</body>
+</html>
