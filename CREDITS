@@ -1,0 +1,8 @@
+This project was developed through a human-AI collaborative process using
+opencode and large language models. The architecture, decisions, and code
+were jointly iterated by human direction and AI assistance.
+
+Built on top of:
+- MCP (Model Context Protocol) — https://modelcontextprotocol.io
+- FastMCP Python SDK — https://github.com/jlowin/fastmcp
+- Python 3, PyYAML, pytest, and the open-source Python ecosystem
